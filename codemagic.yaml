@@ -1,0 +1,38 @@
+# Codemagic: Apple Developer hesabı olmadan imzasız (unsigned) iOS build.
+# Nəticə: FlowerPot-unsigned.ipa və Runner.app.zip (Artifacts bölməsində).
+# İmzasız .ipa birbaşa iPhone-a quraşdırılmır — AltStore, Sideloadly və ya
+# ESign kimi alətlərlə öz Apple ID-nizlə imzalayıb quraşdırmaq lazımdır.
+workflows:
+  ios-unsigned:
+    name: iOS unsigned IPA
+    instance_type: mac_mini_m2
+    max_build_duration: 60
+    environment:
+      flutter: stable
+      xcode: latest
+      cocoapods: default
+    triggering:
+      events:
+        - push
+      branch_patterns:
+        - pattern: main
+          include: true
+    scripts:
+      - name: Flutter paketləri
+        script: flutter pub get
+      # Podfile-ı və pod install-ı flutter build ios özü edir
+      - name: iOS build (imzasız)
+        script: flutter build ios --release --no-codesign
+      - name: IPA və Runner.app.zip yığılması
+        script: |
+          set -e
+          APP="build/ios/iphoneos/Runner.app"
+          OUT="build/ios/unsigned"
+          mkdir -p "$OUT/Payload"
+          cp -R "$APP" "$OUT/Payload/"
+          (cd "$OUT" && zip -qry FlowerPot-unsigned.ipa Payload)
+          (cd build/ios/iphoneos && zip -qry "../unsigned/Runner.app.zip" Runner.app)
+          ls -lh "$OUT"
+    artifacts:
+      - build/ios/unsigned/FlowerPot-unsigned.ipa
+      - build/ios/unsigned/Runner.app.zip
